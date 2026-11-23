@@ -1,4 +1,4 @@
-from src.models import Apartment, Bill, Parameters, Tenant, Transfer
+from src.models import Apartment, ApartmentSettlement, Bill, Parameters, Tenant, Transfer
 
 
 class Manager:
@@ -23,3 +23,51 @@ class Manager:
             if tenant.apartment not in self.apartments:
                 return False
         return True
+
+    def get_apartment_costs(self, apartment_key:str, year:int | None = None, month:int | None = None) -> float:
+        if month is not None and not 1 <= month <= 12:
+            raise ValueError("niepoprawny miesiac")
+        total = 0.0
+
+        if apartment_key not in self.apartments:
+            return None
+        
+        for bill in self.bills:
+            if bill.apartment != apartment_key:
+                continue
+            if year is not None and bill.settlement_year != year:
+                continue
+            if month is not None and bill.settlement_month != month:
+                continue
+            total += bill.amount_pln
+
+        return total
+
+    def create_apartment_settlement(
+    self, apartment_key: str, year: int, month: int
+    ) -> ApartmentSettlement:
+        if not 1 <= month <= 12:
+            raise ValueError("niepoprawny miesiac")
+
+        matching_bills = [
+            bill for bill in self.bills
+            if bill.apartment == apartment_key
+            and bill.settlement_year == year
+            and bill.settlement_month == month
+        ]
+
+        total_rent = sum(
+            bill.amount_pln for bill in matching_bills if bill.type == "rent"
+        )
+        total_bills = sum(
+            bill.amount_pln for bill in matching_bills if bill.type != "rent"
+        )
+
+        return ApartmentSettlement(
+            apartment=apartment_key,
+            year=year,
+            month=month,
+            total_rent_pln=total_rent,
+            total_bills_pln=total_bills,
+            total_due_pln=total_rent + total_bills,
+        )
